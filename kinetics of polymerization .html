@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Molecular Kinetics & Collision Simulator</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        :root {
+            --bg-card: #ffffff;
+            --text-foreground: #0f172a;
+            --text-muted: #64748b;
+            --color-border: #e2e8f0;
+            --color-muted-bg: #f1f5f9;
+            --color-primary: #2563eb;
+            --color-primary-hover: #1d4ed8;
+            --color-error: #ef4444;
+            --color-success: #22c55e;
+            --color-warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        body {
+            background-color: #f8fafc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid var(--color-border);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .header-actions {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 10;
+        }
+
+        .icon-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(241, 245, 249, 0.9);
+            color: var(--text-foreground);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: #e2e8f0;
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            border-bottom: 1px solid var(--color-border);
+            background-color: var(--bg-card);
+        }
+
+        svg {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .metrics-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--color-border);
+            background-color: #fafafa;
+        }
+
+        .metric-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-foreground);
+        }
+
+        .controls-panel {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            background-color: var(--bg-card);
+        }
+
+        @media (max-width: 640px) {
+            .controls-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .slider-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--color-muted-bg);
+            outline: none;
+            accent-color: var(--color-primary);
+            cursor: pointer;
+        }
+
+        .slider-value {
+            font-size: 14px;
+            font-weight: 600;
+            min-width: 60px;
+            text-align: right;
+        }
+
+        .button-group {
+            display: flex;
+            background: var(--color-muted-bg);
+            padding: 4px;
+            border-radius: 20px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 6px 12px;
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: 16px;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .toggle-btn.active {
+            background: var(--color-primary);
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-actions">
+        <button class="icon-btn" id="playPauseBtn" aria-label="Pause simulation">
+            <span class="material-icons" id="playPauseIcon">pause</span>
+        </button>
+    </div>
+
+    <div class="canvas-container">
+        <svg viewBox="0 0 652 326" id="simSvg">
+            <!-- Partition Line -->
+            <line x1="424" y1="0" x2="424" y2="326" stroke="var(--color-border)" stroke-width="1.5" stroke-dasharray="4 4"></line>
+
+            <!-- Target Molecule & Shields -->
+            <g id="targetMolecule">
+                <circle cx="293.6" cy="163.1" r="16.3" fill="var(--color-error)" fill-opacity="0.85" stroke="#b5261a" stroke-width="1.5"></circle>
+                <text x="293.6" y="167.1" font-size="11" font-weight="500" fill="#ffffff" text-anchor="middle">Core</text>
+                
+                <circle cx="274" cy="114.2" r="22.8" fill="var(--color-muted-bg)" fill-opacity="0.8" stroke="var(--text-muted)" stroke-width="1.5"></circle>
+                <text x="274" y="118.2" font-size="11" fill="var(--text-foreground)" fill-opacity="0.7" text-anchor="middle">Shield</text>
+
+                <circle cx="274" cy="212" r="22.8" fill="var(--color-muted-bg)" fill-opacity="0.8" stroke="var(--text-muted)" stroke-width="1.5"></circle>
+                <text x="274" y="216" font-size="11" fill="var(--text-foreground)" fill-opacity="0.7" text-anchor="middle">Shield</text>
+            </g>
+
+            <!-- Dynamic Particles Container -->
+            <g id="particlesContainer"></g>
+
+            <!-- Dotted Curve -->
+            <path d="M 248 98 Q 228 163 248 228" fill="none" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="2 2"></path>
+
+            <!-- Energy Diagram (Right Panel) -->
+            <g transform="translate(443.6575, 32.621875)">
+                <line x1="0" y1="244.6640625" x2="182.6825" y2="244.6640625" stroke="var(--color-muted-foreground)" stroke-width="1"></line>
+                <line x1="15" y1="10" x2="15" y2="244.6640625" stroke="var(--color-muted-foreground)" stroke-width="1"></line>
+                <path d="M 15 179.42 C 52.195 179.42, 78.2925 16.31, 104.39 16.31 C 130.4875 16.31, 143.53625 212.04, 182.6825 212.04" fill="none" stroke="var(--color-primary)" stroke-width="2.5"></path>
+                <line x1="15" y1="81.5546875" x2="182.6825" y2="81.5546875" stroke="var(--color-warning)" stroke-width="1.5" stroke-dasharray="3 3"></line>
+
+                <text x="25" y="169.63375" font-size="11" fill="var(--color-muted-foreground)" font-weight="500">Reactants</text>
+                <text x="104.39" y="71.768125" font-size="11" fill="var(--color-warning)" font-weight="500" text-anchor="middle">Ea Barrier</text>
+                <text x="156.585" y="198.9934375" font-size="11" fill="var(--color-success)" font-weight="500">Products</text>
+                
+                <!-- Animated Ball on Energy Curve -->
+                <circle id="energyBall" cx="15" cy="179.42" r="6" fill="var(--color-success)" stroke="var(--color-card)" stroke-width="1.5"></circle>
+            </g>
+        </svg>
+    </div>
+
+    <div class="metrics-bar">
+        <div class="metric-item">
+            <span class="metric-label">Collision Energy</span>
+            <span class="metric-value" id="collisionEnergyText">92 kJ/mol</span>
+        </div>
+        <div class="metric-item">
+            <span class="metric-label">Barrier Energy</span>
+            <span class="metric-value">62 kJ/mol</span>
+        </div>
+        <div class="metric-item">
+            <span class="metric-label">Success Rate</span>
+            <span class="metric-value" id="successRateText">5.9%</span>
+        </div>
+    </div>
+
+    <div class="controls-panel">
+        <div class="control-group">
+            <label class="control-label" for="tempSlider">System Temperature</label>
+            <div class="slider-wrapper">
+                <input type="range" id="tempSlider" min="100" max="600" value="580">
+                <span class="slider-value" id="tempValue">580 K</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <span class="control-label">Collision Orientation</span>
+            <div class="button-group">
+                <button class="toggle-btn active" data-mode="random">Random</button>
+                <button class="toggle-btn" data-mode="optimal">Optimal Angle</button>
+                <button class="toggle-btn" data-mode="hindered">Steric Hindered</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const particlesContainer = document.getElementById('particlesContainer');
+    const tempSlider = document.getElementById('tempSlider');
+    const tempValue = document.getElementById('tempValue');
+    const collisionEnergyText = document.getElementById('collisionEnergyText');
+    const successRateText = document.getElementById('successRateText');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const playPauseIcon = document.getElementById('playPauseIcon');
+    const toggleBtns = document.querySelectorAll('.toggle-btn');
+    const energyBall = document.getElementById('energyBall');
+
+    let isPlaying = true;
+    let mode = 'random';
+    let temperature = 580;
+    const numParticles = 18;
+    let particles = [];
+
+    // Calculate position along the Bezier Curve path
+    function getEnergyPoint(t) {
+        if (t <= 0.5) {
+            let u = t * 2;
+            let p0 = {x: 15, y: 179.42};
+            let p1 = {x: 52.195, y: 179.42};
+            let p2 = {x: 78.2925, y: 16.31};
+            let p3 = {x: 104.39, y: 16.31};
+            
+            let cx = Math.pow(1-u, 3)*p0.x + 3*Math.pow(1-u, 2)*u*p1.x + 3*(1-u)*u*u*p2.x + Math.pow(u, 3)*p3.x;
+            let cy = Math.pow(1-u, 3)*p0.y + 3*Math.pow(1-u, 2)*u*p1.y + 3*(1-u)*u*u*p2.y + Math.pow(u, 3)*p3.y;
+            return {x: cx, y: cy};
+        } else {
+            let u = (t - 0.5) * 2;
+            let p0 = {x: 104.39, y: 16.31};
+            let p1 = {x: 130.4875, y: 16.31};
+            let p2 = {x: 143.53625, y: 212.04};
+            let p3 = {x: 182.6825, y: 212.04};
+            
+            let cx = Math.pow(1-u, 3)*p0.x + 3*Math.pow(1-u, 2)*u*p1.x + 3*(1-u)*u*u*p2.x + Math.pow(u, 3)*p3.x;
+            let cy = Math.pow(1-u, 3)*p0.y + 3*Math.pow(1-u, 2)*u*p1.y + 3*(1-u)*u*u*p2.y + Math.pow(u, 3)*p3.y;
+            return {x: cx, y: cy};
+        }
+    }
+
+    class Particle {
+        constructor() {
+            this.reset();
+        }
+
+        reset() {
+            this.r = 8;
+            this.x = -Math.random() * 200;
+            
+            if (mode === 'optimal') {
+                this.y = 163.1 + (Math.random() - 0.5) * 20;
+            } else if (mode === 'hindered') {
+                this.y = Math.random() < 0.5 ? 114.2 + (Math.random() - 0.5) * 20 : 212 + (Math.random() - 0.5) * 20;
+            } else {
+                this.y = Math.random() * 320;
+            }
+
+            const speedFactor = (temperature / 300) * (2 + Math.random() * 2);
+            this.vx = speedFactor;
+            this.vy = (Math.random() - 0.5) * 1;
+            this.isReacted = false;
+
+            if (!this.element) {
+                this.element = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                this.element.setAttribute('r', this.r);
+                particlesContainer.appendChild(this.element);
+            }
+            this.updateAppearance();
+        }
+
+        updateAppearance() {
+            if (this.isReacted) {
+                this.element.setAttribute('fill', 'var(--color-success)');
+                this.element.setAttribute('stroke', '#23753a');
+            } else {
+                this.element.setAttribute('fill', 'var(--color-primary)');
+                this.element.setAttribute('stroke', '#1a4cb5');
+            }
+            this.element.setAttribute('stroke-width', '1');
+        }
+
+        update() {
+            if (!isPlaying) return;
+
+            this.x += this.vx;
+            this.y += this.vy;
+
+            const dxCore = this.x - 293.6;
+            const dyCore = this.y - 163.1;
+            const distCore = Math.sqrt(dxCore * dxCore + dyCore * dyCore);
+
+            if (distCore < (this.r + 16.3) && !this.isReacted) {
+                const currentEnergy = Math.round((temperature / 580) * 92);
+                if (currentEnergy >= 62) {
+                    this.isReacted = true;
+                    this.updateAppearance();
+                    this.vx = -this.vx * 0.3;
+                } else {
+                    this.vx = -this.vx;
+                }
+            }
+
+            const shields = [{x: 274, y: 114.2}, {x: 274, y: 212}];
+            shields.forEach(s => {
+                const dx = this.x - s.x;
+                const dy = this.y - s.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < (this.r + 22.8) && !this.isReacted) {
+                    this.vx = -Math.abs(this.vx);
+                }
+            });
+
+            if (this.x > 410 || this.x < -250) {
+                this.reset();
+            }
+
+            this.element.setAttribute('cx', this.x);
+            this.element.setAttribute('cy', this.y);
+        }
+    }
+
+    function init() {
+        particlesContainer.innerHTML = '';
+        particles = [];
+        for (let i = 0; i < numParticles; i++) {
+            particles.push(new Particle());
+        }
+    }
+
+    let graphProgress = 0;
+    function animateGraphBall() {
+        if (isPlaying) {
+            graphProgress += 0.003 * (temperature / 300);
+            if (graphProgress > 1) graphProgress = 0;
+            
+            let pt = getEnergyPoint(graphProgress);
+            energyBall.setAttribute('cx', pt.x);
+            energyBall.setAttribute('cy', pt.y);
+        }
+    }
+
+    function animate() {
+        particles.forEach(p => p.update());
+        animateGraphBall();
+        requestAnimationFrame(animate);
+    }
+
+    function updateMetrics() {
+        tempValue.textContent = `${temperature} K`;
+        const energy = Math.round((temperature / 580) * 92);
+        collisionEnergyText.textContent = `${energy} kJ/mol`;
+
+        let baseRate = (energy >= 62) ? ((energy - 62) / 30 * 10) : 0;
+        if (mode === 'optimal') baseRate *= 2.5;
+        if (mode === 'hindered') baseRate *= 0.2;
+        
+        const successRate = Math.min(Math.max(baseRate, 0), 99.9).toFixed(1);
+        successRateText.textContent = `${successRate}%`;
+    }
+
+    tempSlider.addEventListener('input', (e) => {
+        temperature = parseInt(e.target.value);
+        updateMetrics();
+    });
+
+    toggleBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            toggleBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            mode = btn.getAttribute('data-mode');
+            updateMetrics();
+            init();
+        });
+    });
+
+    playPauseBtn.addEventListener('click', () => {
+        isPlaying = !isPlaying;
+        playPauseIcon.textContent = isPlaying ? 'pause' : 'play_arrow';
+    });
+
+    init();
+    animate();
+</script>
+
+</body>
+</html>
